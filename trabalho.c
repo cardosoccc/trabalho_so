@@ -4,7 +4,8 @@
 
 void print_vector(char name, int *v, int size) {
     printf("%c: ", name);
-    for (int i = 0; i < size; i++) {
+    int i;
+    for (i = 0; i < size; i++) {
         printf("%i", v[i]);
         if (i == size - 1) {
             printf(" \n");
@@ -15,8 +16,9 @@ void print_vector(char name, int *v, int size) {
 }
 
 int* slice(int offset, int size, int *v) {
-    int *slice = (int*)malloc(sizeof(int) * size);
-    for (int i = 0; i < size; i++) {
+    int *slice = (int*)malloc(sizeof(int) * size); 
+    int i;  
+    for (i = 0; i < size; i++) {
         slice[i] = v[offset + i];
     }
     return slice;
@@ -33,6 +35,7 @@ void *calc(void *arg) {
     // //região    críZca  
     // pthread_mutex_unlock(&mutex);   
     vec_tpl *vecs = (vec_tpl*)arg;
+    printf("%s %u\t\n", "TID",(unsigned int)pthread_self());
     print_vector('X', vecs->vec1, vecs->vec_size);
     print_vector('y', vecs->vec2, vecs->vec_size);
     pthread_exit(NULL);
@@ -50,10 +53,9 @@ int main(int argc, char const *argv[]) {
     int vector1[VECSIZE];
     int vector2[VECSIZE];
 
-    int i = 0;
-
     srand(time(NULL));
 
+    int i;
     for (i = 0; i < VECSIZE; i++) {
         vector1[i] = rand() % 10;
         vector2[i] = rand() % 10;
@@ -67,17 +69,29 @@ int main(int argc, char const *argv[]) {
     }
 
     int chunk_size = VECSIZE / NTHREADS;
-    
+    int rest = VECSIZE % NTHREADS;
 
+    // cria subduplas de vetores dividindo igualmente
+    vec_tpl subvectors[NTHREADS];
+
+    for (i = 0; i < NTHREADS; i++) {
+        subvectors[i].vec1 = slice(i*chunk_size, chunk_size, vector1);
+        subvectors[i].vec2 = slice(i*chunk_size, chunk_size, vector2);
+        subvectors[i].vec_size = chunk_size;
+    }
+
+    // se houver resto na divisao,
+    // redistribui nos primeiros subvetores
+    /* TODO */
+
+    // cria uma thread para cada subdupla de vetor
+    // responsaveis pelo subcalculo do produto escalar
     pthread_t threads[NTHREADS];
 
     for (i = 0; i < NTHREADS; i++) {
-        vec_tpl subvectors;
-        subvectors.vec1 = slice(i, chunk_size, vector1);
-        subvectors.vec2 = slice(i, chunk_size, vector2);
-        subvectors.vec_size = chunk_size;
-        pthread_create(&threads[i], NULL, calc, (void*)&subvectors);
+        pthread_create(&threads[i], NULL, calc, (void*)(&subvectors[i]));
+        pthread_join(threads[i], NULL); //APENAS PARA TESTES
     }
 
-    return 0;
+    pthread_exit(NULL);
 }
