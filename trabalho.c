@@ -2,8 +2,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+
+pthread_mutex_t mutex;
+
+int sum = 0;
+
 void print_vector(char name, int *v, int size) {
-    printf("%c: ", name);
+    printf("%c = ", name);
     int i;
     for (i = 0; i < size; i++) {
         printf("%i", v[i]);
@@ -28,35 +33,45 @@ typedef struct vec_tuple {
     int* vec1;
     int* vec2;
     int vec_size;
+    int thread_number;
+    int offset;
 } vec_tpl;
 
 void *calc(void *arg) {
-    // pthread_mutex_lock(&mutex); 
-    // //região    críZca  
-    // pthread_mutex_unlock(&mutex);   
     vec_tpl *vecs = (vec_tpl*)arg;
-    printf("--\n");
-    print_vector('X', vecs->vec1, vecs->vec_size);
-    print_vector('y', vecs->vec2, vecs->vec_size);
+
+    int i;
+    int partial = 0;
+    for (i = 0; i < vecs->vec_size; i++) {
+        partial += vecs->vec1[i] * vecs->vec2[i];
+    }
+    pthread_mutex_lock(&mutex); 
+    sum += partial;
+    pthread_mutex_unlock(&mutex);
+
+
+    printf("Thread %i calculou de %i a %i: produto escalar parcial = %i\n", 
+           vecs->thread_number, 
+           vecs->offset, 
+           vecs->offset + vecs->vec_size, 
+           partial);
+
     pthread_exit(NULL);
 }   
 
-// int *vetor = (int *) malloc(sizeof(int) * 10)
-
-int sum = 0;
 
 int main(int argc, char const *argv[]) {
 
-	// verifica os parametros do programa
-	if(argv[1]==NULL || argv[2]==NULL){
-		printf("ERRO: Utilize o formato <nome_do_programa> <vector_size> <num_threads>\n");
-		return 1;
-	}
+    // verifica os parametros do programa
+    if(argv[1]==NULL || argv[2]==NULL){
+        printf("ERRO: Utilize o formato <nome_do_programa> <vector_size> <num_threads>\n");
+        return 1;
+    }
+
+    pthread_mutex_init(&mutex, NULL);
 
     int VECSIZE = atoi(argv[1]);
     int NTHREADS = atoi(argv[2]);
-
-	printf("VECSIZE: %d\tNTHREADS: %d\n", VECSIZE, NTHREADS);
 
     int vector1[VECSIZE];
     int vector2[VECSIZE];
@@ -85,17 +100,18 @@ int main(int argc, char const *argv[]) {
 
     int pos = 0;
     for (i = 0; i < NTHREADS; i++) {
-    	int range = chunk_size;
+        int range = chunk_size;
 
-    	// se houver resto na divisao,
-    	// os primeiros subvetores recebem mais um valor
-    	if(rest>0 && i < rest){
-    		range++;
-    	}
+        // se houver resto na divisao,
+        // os primeiros subvetores recebem mais um valor
+        if(rest>0 && i < rest){
+            range++;
+        }
         subvectors[i].vec1 = slice(pos, range, vector1);
         subvectors[i].vec2 = slice(pos, range, vector2);
         subvectors[i].vec_size = range;
-
+        subvectors[i].thread_number = i+1; 
+        subvectors[i].offset = pos; 
         pos += range;
     }
 
@@ -106,8 +122,14 @@ int main(int argc, char const *argv[]) {
 
     for (i = 0; i < NTHREADS; i++) {
         pthread_create(&threads[i], NULL, calc, (void*)(&subvectors[i]));
-        pthread_join(threads[i], NULL); //APENAS PARA TESTES
     }
+    
+    for (i = 0; i < NTHREADS; i++) {
+        pthread_join(threads[i], NULL);
+    }
+    
+    printf("Produto escalar = %i\n", sum);
 
-    pthread_exit(NULL);
+    pthread_mutex_destroy(&mutex);
+    return 0;
 }
