@@ -35,7 +35,7 @@ void *calc(void *arg) {
     // //região    críZca  
     // pthread_mutex_unlock(&mutex);   
     vec_tpl *vecs = (vec_tpl*)arg;
-    printf("%s %u\t\n", "TID",(unsigned int)pthread_self());
+    printf("--\n");
     print_vector('X', vecs->vec1, vecs->vec_size);
     print_vector('y', vecs->vec2, vecs->vec_size);
     pthread_exit(NULL);
@@ -46,15 +46,24 @@ void *calc(void *arg) {
 int sum = 0;
 
 int main(int argc, char const *argv[]) {
-    
-    int VECSIZE = 19;
-    int NTHREADS = 7;
+
+	// verifica os parametros do programa
+	if(argv[1]==NULL || argv[2]==NULL){
+		printf("ERRO: Utilize o formato <nome_do_programa> <vector_size> <num_threads>\n");
+		return 1;
+	}
+
+    int VECSIZE = atoi(argv[1]);
+    int NTHREADS = atoi(argv[2]);
+
+	printf("VECSIZE: %d\tNTHREADS: %d\n", VECSIZE, NTHREADS);
 
     int vector1[VECSIZE];
     int vector2[VECSIZE];
 
     srand(time(NULL));
 
+    // inicializa os vetores com valores aleatorios
     int i;
     for (i = 0; i < VECSIZE; i++) {
         vector1[i] = rand() % 10;
@@ -71,18 +80,25 @@ int main(int argc, char const *argv[]) {
     int chunk_size = VECSIZE / NTHREADS;
     int rest = VECSIZE % NTHREADS;
 
-    // cria subduplas de vetores dividindo igualmente
+    // cria subduplas de vetores dividindo igualmente, se possivel
     vec_tpl subvectors[NTHREADS];
 
+    int pos = 0;
     for (i = 0; i < NTHREADS; i++) {
-        subvectors[i].vec1 = slice(i*chunk_size, chunk_size, vector1);
-        subvectors[i].vec2 = slice(i*chunk_size, chunk_size, vector2);
-        subvectors[i].vec_size = chunk_size;
+    	int range = chunk_size;
+
+    	// se houver resto na divisao,
+    	// os primeiros subvetores recebem mais um valor
+    	if(rest>0 && i < rest){
+    		range++;
+    	}
+        subvectors[i].vec1 = slice(pos, range, vector1);
+        subvectors[i].vec2 = slice(pos, range, vector2);
+        subvectors[i].vec_size = range;
+
+        pos += range;
     }
 
-    // se houver resto na divisao,
-    // redistribui nos primeiros subvetores
-    /* TODO */
 
     // cria uma thread para cada subdupla de vetor
     // responsaveis pelo subcalculo do produto escalar
