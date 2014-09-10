@@ -53,7 +53,7 @@ void *calc(void *arg) {
     printf("Thread %i calculou de %i a %i: produto escalar parcial = %i\n", 
            vecs->thread_number, 
            vecs->offset, 
-           vecs->offset + vecs->vec_size, 
+           vecs->offset + vecs->vec_size-1, 
            partial);
 
     pthread_exit(NULL);
@@ -124,6 +124,7 @@ int main(int argc, char const *argv[]) {
         pthread_create(&threads[i], NULL, calc, (void*)(&subvectors[i]));
     }
     
+    // sincroniza apos o termino de todas as threads
     for (i = 0; i < NTHREADS; i++) {
         pthread_join(threads[i], NULL);
     }
